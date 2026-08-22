@@ -105,17 +105,14 @@ const Icon = {
       <path d="m4 17 5-5 3.5 3.5L16 12l4 5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   ),
-  Smile: (props) => (
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
-      <circle cx="12" cy="12" r="9" />
-      <circle cx="9" cy="10" r="1" fill="currentColor" stroke="none" />
-      <circle cx="15" cy="10" r="1" fill="currentColor" stroke="none" />
-      <path d="M8 14c1 1.5 2.5 2.3 4 2.3s3-.8 4-2.3" strokeLinecap="round" />
-    </svg>
-  ),
   Send: (props) => (
     <svg viewBox="0 0 24 24" width="17" height="17" fill="currentColor" {...props}>
       <path d="M3 11.5 21 3l-6.5 18-3.2-7.3z" />
+    </svg>
+  ),
+  Close: (props) => (
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" {...props}>
+      <path d="M6 6l12 12M18 6 6 18" strokeLinecap="round" />
     </svg>
   ),
 };
@@ -129,7 +126,10 @@ export default function Home() {
   const fileInputRef = useRef(null);
   const scrollRef = useRef(null);
   const textareaRef = useRef(null);
+  const searchRef = useRef(null);
   const [appHeight, setAppHeight] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   // keep the app pinned to the real visible viewport, since mobile
   // browsers don't shrink 100dvh reliably when the keyboard opens
@@ -203,6 +203,19 @@ export default function Home() {
     } catch (e) {}
   }
 
+  function toggleSearch() {
+    setSearchOpen((prev) => {
+      const next = !prev;
+      if (next) setTimeout(() => searchRef.current?.focus(), 50);
+      else setSearchQuery("");
+      return next;
+    });
+  }
+
+  const visibleMessages = searchOpen && searchQuery.trim()
+    ? messages.filter((m) => m.text?.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : messages;
+
   async function handleSend() {
     if (sending) return;
     const text = input.trim();
@@ -256,27 +269,50 @@ export default function Home() {
   return (
     <div className="app" style={appHeight ? { height: appHeight } : undefined}>
       <div className="header">
-        <div className="avatar">
-          <Icon.Shield />
-        </div>
-        <div className="header-info">
-          <div className="header-name">
-            Anti-Phishing OA <span className="verified" title="Official Account">✓</span>
-          </div>
-          <div className="header-sub">Official Account</div>
-        </div>
-        <div className="header-actions">
-          <span className="header-icon" title="Tìm kiếm">
-            <Icon.Search />
-          </span>
-          <span className="header-icon" title="Xoá lịch sử chat" onClick={clearHistory}>
-            <Icon.Trash />
-          </span>
-        </div>
+        {searchOpen ? (
+          <>
+            <span className="header-icon" title="Đóng tìm kiếm" onClick={toggleSearch}>
+              <Icon.Close />
+            </span>
+            <input
+              ref={searchRef}
+              className="header-search-input"
+              placeholder="Tìm trong hội thoại..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </>
+        ) : (
+          <>
+            <div className="avatar">
+              <Icon.Shield />
+            </div>
+            <div className="header-info">
+              <div className="header-name">
+                Anti-Phishing OA <span className="verified" title="Official Account">✓</span>
+              </div>
+              <div className="header-sub">Official Account</div>
+            </div>
+            <div className="header-actions">
+              <span className="header-icon" title="Tìm kiếm" onClick={toggleSearch}>
+                <Icon.Search />
+              </span>
+              <span className="header-icon" title="Xoá lịch sử chat" onClick={clearHistory}>
+                <Icon.Trash />
+              </span>
+            </div>
+          </>
+        )}
       </div>
 
+      {searchOpen && searchQuery.trim() && (
+        <div className="search-result-count">
+          {visibleMessages.length} kết quả cho "{searchQuery.trim()}"
+        </div>
+      )}
+
       <div className="messages" ref={scrollRef}>
-        {messages.map((m, i) => (
+        {visibleMessages.map((m, i) => (
           <div key={i} className={`row ${m.role}`}>
             {m.role === "bot" && (
               <div className="bubble-avatar">
@@ -362,15 +398,14 @@ export default function Home() {
             onKeyDown={handleKeyDown}
             onFocus={() => setTimeout(scrollToBottom, 300)}
           />
-          {input.trim() || pendingImages.length > 0 ? (
-            <button className="send-btn" onClick={handleSend} disabled={sending} title="Gửi">
-              <Icon.Send />
-            </button>
-          ) : (
-            <button className="icon-btn" title="Sticker">
-              <Icon.Smile />
-            </button>
-          )}
+          <button
+            className="send-btn"
+            onClick={handleSend}
+            disabled={sending || (!input.trim() && pendingImages.length === 0)}
+            title="Gửi"
+          >
+            <Icon.Send />
+          </button>
         </div>
       </div>
     </div>

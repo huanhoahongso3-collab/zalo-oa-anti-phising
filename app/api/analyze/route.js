@@ -102,6 +102,20 @@ export async function POST(req) {
     return Response.json({ error: "Thiếu nội dung để kiểm tra." }, { status: 400 });
   }
 
+  // Debug logging only - view in Vercel Dashboard > Deployments > Functions
+  // > /api/analyze > Logs. No persistent storage/admin UI, just this line.
+  console.log(
+    "[analyze request]",
+    JSON.stringify({
+      time: new Date().toISOString(),
+      ip: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
+      userAgent: req.headers.get("user-agent") || "unknown",
+      hasImage,
+      textPreview: text?.trim()?.slice(0, 200) || null,
+      textLength: text?.trim()?.length || 0,
+    })
+  );
+
   try {
     let verificationInput;
 
