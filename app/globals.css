@@ -269,6 +269,18 @@ html, body {
   margin: 2px 4px 0;
 }
 
+.source-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--search-bar-fg);
+  margin-bottom: 5px;
+}
+
 .verdict-badge {
   display: inline-flex;
   align-items: center;

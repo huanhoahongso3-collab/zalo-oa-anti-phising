@@ -9,11 +9,13 @@ const WELCOME_MESSAGES = [
     role: "bot",
     text: "Xin chào 👋 Mình là trợ lý chống lừa đảo. Hãy chuyển tiếp cho mình đoạn tin nhắn hoặc ảnh chụp màn hình bạn đang nghi ngờ, mình sẽ kiểm tra giúp bạn.",
     time: null,
+    noVerdict: true,
   },
   {
     role: "bot",
-    text: "📌 Hướng dẫn sử dụng:\n1. Gửi đoạn văn bản tin nhắn nghi ngờ (không kèm ảnh) → mình sẽ phân tích và tìm kiếm trên web để xác minh.\n2. Gửi ảnh chụp màn hình (tin nhắn, SMS, email, trang web, mã QR, hóa đơn...) → mình sẽ đọc ảnh rồi xác minh qua tìm kiếm web.\n3. Gửi CHỈ một đường link, không kèm chữ nào khác → mình sẽ kiểm tra tức thời qua Google Safe Browsing để trả lời nhanh hơn.",
+    text: "📌 Hướng dẫn sử dụng:\n1. Gửi đoạn văn bản tin nhắn nghi ngờ (không kèm ảnh) → mình sẽ phân tích và tìm kiếm trên web để xác minh.\n2. Gửi ảnh chụp màn hình (tin nhắn, SMS, email, trang web, mã QR, hóa đơn...) → mình sẽ đọc ảnh rồi xác minh qua tìm kiếm web.\n3. Gửi CHỈ một đường link, không kèm chữ nào khác → mình sẽ kiểm tra tức thời qua Google Safe Browsing để trả lời nhanh hơn. Kết quả kiểu này sẽ có nhãn \"Google Safe Browsing\" để bạn biết đây là kiểm tra tức thời, khác với kết quả do AI phân tích.",
     time: null,
+    noVerdict: true,
   },
 ];
 
@@ -31,6 +33,17 @@ function fileToBase64(file) {
 
 function escapeHtml(str) {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+const SAFE_BROWSING_MARKER = "[[SRC:SAFE_BROWSING]]";
+
+// Detects the backend's Safe Browsing marker so that verdict can be shown
+// with a distinct source tag instead of looking like a normal AI answer.
+function extractSource(text) {
+  if (text.startsWith(SAFE_BROWSING_MARKER)) {
+    return { source: "safe_browsing", rest: text.slice(SAFE_BROWSING_MARKER.length).replace(/^\n/, "") };
+  }
+  return { source: "ai", rest: text };
 }
 
 const VERDICTS = [
@@ -328,17 +341,25 @@ export default function Home() {
                   <img key={j} src={src} alt="forwarded" style={{ marginBottom: m.text ? 6 : 0 }} />
                 ))}
                 {m.role === "bot" ? (
-                  (() => {
-                    const { kind, short, rest } = extractVerdict(m.text);
-                    return (
-                      <>
-                        {kind && (
-                          <div className={`verdict-badge verdict-badge-${kind}`}>{short}</div>
-                        )}
-                        <span dangerouslySetInnerHTML={{ __html: renderReply(rest) }} />
-                      </>
-                    );
-                  })()
+                  m.noVerdict ? (
+                    <span dangerouslySetInnerHTML={{ __html: renderReply(m.text) }} />
+                  ) : (
+                    (() => {
+                      const { source, rest: afterSource } = extractSource(m.text);
+                      const { kind, short, rest } = extractVerdict(afterSource);
+                      return (
+                        <>
+                          {source === "safe_browsing" && (
+                            <div className="source-tag">🛰️ Google Safe Browsing</div>
+                          )}
+                          {kind && (
+                            <div className={`verdict-badge verdict-badge-${kind}`}>{short}</div>
+                          )}
+                          <span dangerouslySetInnerHTML={{ __html: renderReply(rest) }} />
+                        </>
+                      );
+                    })()
+                  )
                 ) : (
                   m.text
                 )}

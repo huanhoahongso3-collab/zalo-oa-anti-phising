@@ -93,12 +93,16 @@ async function checkSafeBrowsing(url, apiKey) {
   return json.matches ?? [];
 }
 
+// leading marker the frontend detects and renders as a distinct "source" tag,
+// so a Safe-Browsing verdict is visually distinguishable from an AI verdict
+const SAFE_BROWSING_MARKER = "[[SRC:SAFE_BROWSING]]";
+
 function buildSafeBrowsingReply(url, matches) {
   if (matches.length > 0) {
     const types = [...new Set(matches.map((m) => THREAT_TYPE_VI[m.threatType] || m.threatType))];
-    return `⚠️ CÓ DẤU HIỆU LỪA ĐẢO\nĐường link "${url}" đã bị Google Safe Browsing gắn cờ nguy hiểm: ${types.join(", ")}.\nKhông bấm vào link này, không nhập bất kỳ thông tin cá nhân hay tài khoản/mật khẩu nào nếu đã lỡ mở. Nếu link này được gửi kèm tin nhắn/email, hãy chặn và báo cáo người gửi.`;
+    return `${SAFE_BROWSING_MARKER}\n⚠️ CÓ DẤU HIỆU LỪA ĐẢO\nĐường link "${url}" đã bị Google Safe Browsing xác nhận là nguy hiểm: ${types.join(", ")}.\nKhông bấm vào link này, không nhập bất kỳ thông tin cá nhân hay tài khoản/mật khẩu nào nếu đã lỡ mở. Nếu link này được gửi kèm tin nhắn/email, hãy chặn và báo cáo người gửi.`;
   }
-  return `✅ CÓ VẺ AN TOÀN\nĐường link "${url}" không có trong danh sách trang web nguy hiểm đã biết của Google Safe Browsing.\nLưu ý: kết quả này chỉ dựa trên danh sách của Google, không đảm bảo an toàn tuyệt đối 100% vì các trang lừa đảo mới có thể chưa được ghi nhận. Vẫn nên thận trọng nếu link yêu cầu bạn đăng nhập, nhập OTP hoặc chuyển tiền.`;
+  return `${SAFE_BROWSING_MARKER}\n✅ CÓ VẺ AN TOÀN\nĐường link "${url}" không có trong danh sách trang web nguy hiểm đã biết của Google Safe Browsing.\nLưu ý: kết quả này chỉ dựa trên danh sách của Google, không đảm bảo an toàn tuyệt đối 100% vì các trang lừa đảo mới có thể chưa được ghi nhận. Vẫn nên thận trọng nếu link yêu cầu bạn đăng nhập, nhập OTP hoặc chuyển tiền.`;
 }
 
 function stripThinkAndFixSpelling(raw) {
