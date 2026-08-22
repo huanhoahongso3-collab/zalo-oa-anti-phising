@@ -37,7 +37,9 @@ BẮT BUỘC dùng công cụ tìm kiếm web (nếu có) trước khi kết lu�
 - Số điện thoại: tìm xem số đó có phải tổng đài chính thức của tổ chức được nhắc tới hay không, có bị người dùng khác báo cáo là số lừa đảo/quấy rối hay không.
 - Số tài khoản ngân hàng: tìm xem số tài khoản đó có từng bị báo cáo liên quan đến lừa đảo hay không.
 
-QUAN TRỌNG - chỉ nói sự thật: KHÔNG được bịa đặt, suy diễn hay tự tạo ra thông tin (tên công ty, số điện thoại, đường link, số liệu, trích dẫn tin tức...) không có trong nội dung người dùng gửi hoặc không tìm thấy qua tìm kiếm web thật sự. Nếu tra cứu web không tìm thấy thông tin xác thực, hãy nói rõ là "không tìm thấy thông tin xác thực" thay vì đoán. Nếu không chắc chắn, hãy chọn nhãn "❓ CHƯA ĐỦ THÔNG TIN" và nói rõ bạn không chắc, thay vì khẳng định chắc nịch một điều bạn không kiểm chứng được. Khi kết luận dựa trên kết quả tìm kiếm, hãy nêu ngắn gọn nguồn/căn cứ (ví dụ: "theo kết quả tìm kiếm, số này từng bị báo cáo lừa đảo trên...") thay vì chỉ nói suông.`;
+QUAN TRỌNG - chỉ nói sự thật: KHÔNG được bịa đặt, suy diễn hay tự tạo ra thông tin (tên công ty, số điện thoại, đường link, số liệu, trích dẫn tin tức...) không có trong nội dung người dùng gửi hoặc không tìm thấy qua tìm kiếm web thật sự. Nếu tra cứu web không tìm thấy thông tin xác thực, hãy nói rõ là "không tìm thấy thông tin xác thực" thay vì đoán. Nếu không chắc chắn, hãy chọn nhãn "❓ CHƯA ĐỦ THÔNG TIN" và nói rõ bạn không chắc, thay vì khẳng định chắc nịch một điều bạn không kiểm chứng được. Khi kết luận dựa trên kết quả tìm kiếm, hãy nêu ngắn gọn nguồn/căn cứ (ví dụ: "theo kết quả tìm kiếm, số này từng bị báo cáo lừa đảo trên...") thay vì chỉ nói suông.
+
+QUAN TRỌNG - không suy diễn quá mức thành lừa đảo: việc KHÔNG tìm thấy thông tin về một link/số điện thoại/tổ chức trên mạng KHÔNG phải là bằng chứng nó là lừa đảo - nhiều tổ chức, chương trình, hoặc số tổng đài nội bộ hợp pháp cũng ít xuất hiện trên kết quả tìm kiếm. Chỉ gắn nhãn "⚠️ CÓ DẤU HIỆU LỪA ĐẢO" khi có ít nhất một trong các bằng chứng CỤ THỂ sau: (a) tìm kiếm xác nhận link/số điện thoại/tài khoản đã bị báo cáo lừa đảo, (b) tên miền/số điện thoại KHÔNG khớp với tên miền/tổng đài chính thức đã biết của tổ chức được nhắc tới, hoặc (c) nội dung có hành vi rõ ràng đặc trưng của lừa đảo (yêu cầu OTP/mật khẩu, ép chuyển tiền gấp, đe doạ, hứa hẹn phi lý...). Nếu không có bằng chứng cụ thể nào ở trên, dù bạn thấy nghi ngờ mơ hồ, hãy chọn "❓ CHƯA ĐỦ THÔNG TIN" hoặc "✅ CÓ VẺ AN TOÀN" tuỳ mức độ, TUYỆT ĐỐI không gắn nhãn "lừa đảo" chỉ vì cảm tính hoặc vì không tìm thấy đủ thông tin xác nhận.`;
 
 // groq/compound-mini has built-in web search (for up-to-date scam/link/phone
 // checks) but no vision. qwen has vision but no search. So for images we run
@@ -81,8 +83,13 @@ async function callGroq(apiKey, { model, messages, extraParams }) {
   }
 
   const json = await res.json();
-  const content = json.choices?.[0]?.message?.content ?? "";
-  return { ok: true, content };
+  const message = json.choices?.[0]?.message ?? {};
+  const executedTools = message.executed_tools ?? [];
+  console.log(
+    "[groq call]",
+    JSON.stringify({ model, executedToolCount: executedTools.length, tools: executedTools.map((t) => t.type || t.name) })
+  );
+  return { ok: true, content: message.content ?? "", executedTools };
 }
 
 export async function POST(req) {
