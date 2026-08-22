@@ -26,6 +26,25 @@ function escapeHtml(str) {
   return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+const VERDICTS = [
+  { kind: "fraud", label: "⚠️ CÓ DẤU HIỆU LỪA ĐẢO", short: "Lừa đảo" },
+  { kind: "safe", label: "✅ CÓ VẺ AN TOÀN", short: "An toàn" },
+  { kind: "unsure", label: "❓ CHƯA ĐỦ THÔNG TIN", short: "Chưa chắc chắn" },
+];
+
+// Pulls the leading verdict label (if present) out of the reply so it can be
+// shown as a status badge pinned to the top of the bubble instead of buried
+// inline in the text.
+function extractVerdict(text) {
+  for (const v of VERDICTS) {
+    if (text.trim().startsWith(v.label)) {
+      const rest = text.trim().slice(v.label.length).replace(/^[\s:.\-–]+/, "");
+      return { ...v, rest };
+    }
+  }
+  return { kind: null, rest: text };
+}
+
 // The model is instructed to avoid markdown, but strip it defensively
 // (and drop any stray <think> block) so raw ** or - never leak to the user.
 function renderReply(text) {
@@ -35,10 +54,6 @@ function renderReply(text) {
   t = t.replace(/(^|[^*])\*(?!\*)([^*\n]+)\*(?!\*)/g, "$1<i>$2</i>");
   t = t.replace(/^[ \t]*[-*]\s+/gm, "• ");
   t = t.replace(/^#{1,6}\s*/gm, "");
-  t = t
-    .replace(/⚠️ CÓ DẤU HIỆU LỪA ĐẢO/g, '<span class="verdict-fraud">⚠️ CÓ DẤU HIỆU LỪA ĐẢO</span>')
-    .replace(/✅ CÓ VẺ AN TOÀN/g, '<span class="verdict-safe">✅ CÓ VẺ AN TOÀN</span>')
-    .replace(/❓ CHƯA ĐỦ THÔNG TIN/g, '<span class="verdict-unsure">❓ CHƯA ĐỦ THÔNG TIN</span>');
   return t.replace(/\n/g, "<br>");
 }
 
@@ -256,7 +271,17 @@ export default function Home() {
                   <img key={j} src={src} alt="forwarded" style={{ marginBottom: m.text ? 6 : 0 }} />
                 ))}
                 {m.role === "bot" ? (
-                  <span dangerouslySetInnerHTML={{ __html: renderReply(m.text) }} />
+                  (() => {
+                    const { kind, short, rest } = extractVerdict(m.text);
+                    return (
+                      <>
+                        {kind && (
+                          <div className={`verdict-badge verdict-badge-${kind}`}>{short}</div>
+                        )}
+                        <span dangerouslySetInnerHTML={{ __html: renderReply(rest) }} />
+                      </>
+                    );
+                  })()
                 ) : (
                   m.text
                 )}
