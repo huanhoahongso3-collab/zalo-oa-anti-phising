@@ -1,5 +1,3 @@
-import Anthropic from "@anthropic-ai/sdk";
-
 const SYSTEM_PROMPT = `Bạn là trợ lý chống lừa đảo của một Zalo OA. Người dùng sẽ chuyển tiếp cho bạn một đoạn tin nhắn hoặc ảnh chụp màn hình (chat, SMS, email, trang web, mã QR, hóa đơn chuyển khoản...) mà họ nghi ngờ là lừa đảo.
 
 Nhiệm vụ của bạn:
@@ -10,11 +8,13 @@ Nhiệm vụ của bạn:
 
 Trả lời ngắn gọn, rõ ràng, bằng tiếng Việt, giọng điệu thân thiện và trấn an vì người dùng có thể đang lo lắng.`;
 
+const GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+
 export async function POST(req) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
+  const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
     return Response.json(
-      { error: "ANTHROPIC_API_KEY chưa được cấu hình trên server." },
+      { error: "GROQ_API_KEY chưa được cấu hình trên server." },
       { status: 500 }
     );
   }
@@ -26,34 +26,49 @@ export async function POST(req) {
     return Response.json({ error: "Thiếu nội dung để kiểm tra." }, { status: 400 });
   }
 
-  const content = [];
+  const content = [
+    {
+      type: "text",
+      text: text?.trim()
+        ? `Đây là nội dung người dùng chuyển tiếp:\n\n"""${text.trim()}"""`
+        : "Người dùng chỉ gửi ảnh, không có chú thích kèm theo. Hãy phân tích ảnh.",
+    },
+  ];
   if (image?.data && image?.mediaType) {
     content.push({
-      type: "image",
-      source: { type: "base64", media_type: image.mediaType, data: image.data },
+      type: "image_url",
+      image_url: { url: `data:${image.mediaType};base64,${image.data}` },
     });
   }
-  content.push({
-    type: "text",
-    text: text?.trim()
-      ? `Đây là nội dung người dùng chuyển tiếp:\n\n"""${text.trim()}"""`
-      : "Người dùng chỉ gửi ảnh, không có chú thích kèm theo. Hãy phân tích ảnh.",
-  });
-
-  const anthropic = new Anthropic({ apiKey });
 
   try {
-    const msg = await anthropic.messages.create({
-      model: "claude-sonnet-4-5",
-      max_tokens: 700,
-      system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content }],
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: GROQ_MODEL,
+        max_tokens: 700,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content },
+        ],
+      }),
     });
 
-    const reply = msg.content
-      .filter((b) => b.type === "text")
-      .map((b) => b.text)
-      .join("\n");
+    if (!res.ok) {
+      const errText = await res.text();
+      console.error("Groq API error:", res.status, errText);
+      return Response.json(
+        { error: "Lỗi khi gọi AI, vui lòng thử lại." },
+        { status: 502 }
+      );
+    }
+
+    const json = await res.json();
+    const reply = json.choices?.[0]?.message?.content ?? "";
 
     return Response.json({ reply });
   } catch (err) {
