@@ -16,7 +16,9 @@ QUAN TRỌNG - chỉ nói sự thật: KHÔNG được bịa đặt, suy diễn 
 
 // groq/compound has built-in web search (for up-to-date scam checks) but no
 // vision; the vision model has no search. Pick per-request based on input.
-const TEXT_MODEL = "groq/compound";
+// compound-mini (single tool call, lighter) instead of compound to stay
+// under the shared on-demand token-per-minute rate limit more reliably
+const TEXT_MODEL = "groq/compound-mini";
 const VISION_MODEL = "qwen/qwen3.6-27b";
 
 export async function POST(req) {
@@ -75,8 +77,14 @@ export async function POST(req) {
     if (!res.ok) {
       const errText = await res.text();
       console.error("Groq API error:", res.status, errText);
+      if (res.status === 429) {
+        return Response.json(
+          { error: "Hệ thống đang quá tải, vui lòng thử lại sau khoảng 1 phút." },
+          { status: 429 }
+        );
+      }
       return Response.json(
-        { error: `Groq API lỗi (${res.status}, model=${model}): ${errText}` },
+        { error: "Lỗi khi gọi AI, vui lòng thử lại." },
         { status: 502 }
       );
     }
