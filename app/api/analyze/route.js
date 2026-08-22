@@ -1,4 +1,19 @@
-const SYSTEM_PROMPT = `Bạn là trợ lý chống lừa đảo của một Zalo OA. Người dùng sẽ chuyển tiếp cho bạn một đoạn tin nhắn hoặc ảnh chụp màn hình (chat, SMS, email, trang web, mã QR, hóa đơn chuyển khoản...) mà họ nghi ngờ là lừa đảo.
+const LANGUAGE_RULES = `LUÔN LUÔN trả lời TOÀN BỘ bằng tiếng Việt, không dùng bất kỳ từ tiếng Anh nào (kể cả thuật ngữ - hãy dịch sang tiếng Việt). LUÔN viết đúng chính tả tiếng Việt và đúng dấu thanh (sắc, huyền, hỏi, ngã, nặng) cho mọi từ, kiểm tra lại trước khi trả lời - ví dụ phải viết đúng "lừa đảo" (không phải "lỡ đảo", "lừa đão" hay biến thể sai dấu nào khác).`;
+
+// Step 1 (image only): vision model reads the screenshot, extracts every
+// fact, and writes a preliminary draft analysis/conclusion - but it has no
+// web search, so its conclusion is provisional. Step 2 hands this draft to
+// the search-capable model, which verifies the facts against the web and
+// either confirms or corrects the draft before answering the user.
+const EXTRACT_PROMPT = `Bạn là bước phân tích sơ bộ trong một hệ thống chống lừa đảo. Bạn xem ảnh chụp màn hình (tin nhắn, SMS, email, trang web, mã QR, hóa đơn chuyển khoản...) và viết một bản NHÁP để một AI khác (có khả năng tìm kiếm web) kiểm chứng lại sau, vì vậy hãy trình bày đầy đủ, rõ ràng:
+1. Toàn bộ văn bản đọc được trong ảnh (dịch sang tiếng Việt nếu là ngôn ngữ khác). Nếu không đọc rõ phần nào, ghi rõ "không đọc rõ".
+2. Liệt kê rõ ràng, riêng biệt: mọi đường link/tên miền, mọi số điện thoại, mọi số tài khoản ngân hàng, tên người/tổ chức được nhắc tới trong ảnh.
+3. Mô tả ngắn loại ảnh và giao diện (ví dụ: tin nhắn SMS, đoạn chat Zalo, email, trang web, mã QR...).
+4. Nhận định SƠ BỘ của bạn: đây có dấu hiệu lừa đảo hay không, và lý do (dựa trên nội dung/hình thức bạn quan sát được). Nói rõ đây chỉ là nhận định ban đầu, CHƯA được xác minh qua tìm kiếm web vì bạn không có công cụ đó.
+
+${LANGUAGE_RULES}`;
+
+const SYSTEM_PROMPT = `Bạn là trợ lý chống lừa đảo của một Zalo OA. Người dùng sẽ chuyển tiếp cho bạn một đoạn tin nhắn hoặc thông tin trích xuất từ ảnh chụp màn hình (chat, SMS, email, trang web, mã QR, hóa đơn chuyển khoản...) mà họ nghi ngờ là lừa đảo.
 
 Nhiệm vụ của bạn:
 1. Phân tích nội dung để tìm dấu hiệu lừa đảo: giả mạo ngân hàng/cơ quan nhà nước, yêu cầu chuyển tiền gấp, đường link lạ/rút gọn/tên miền giả mạo (viết sai chính tả, miền phụ lạ, IP, dùng dịch vụ rút gọn link), yêu cầu OTP/mật khẩu, hứa hẹn trúng thưởng, đầu tư lãi suất cao bất thường, giả mạo người thân/công an/tòa án, giả mạo shipper, tuyển dụng việc nhẹ lương cao, v.v.
@@ -13,7 +28,7 @@ BẮT BUỘC: dòng đầu tiên của câu trả lời phải là NGUYÊN VĂN,
 ❓ CHƯA ĐỦ THÔNG TIN
 Sau đó xuống dòng rồi mới viết phần giải thích. Không viết gì khác trên dòng đầu tiên đó (không thêm số thứ tự, không thêm chữ nào khác).
 
-Trả lời ngắn gọn, rõ ràng, TOÀN BỘ bằng tiếng Việt (không dùng tiếng Anh, kể cả từ chuyên ngành - hãy dịch sang tiếng Việt), giọng điệu thân thiện và trấn an vì người dùng có thể đang lo lắng. LUÔN viết đúng chính tả tiếng Việt và đúng dấu thanh (sắc, huyền, hỏi, ngã, nặng) cho mọi từ, kiểm tra lại trước khi trả lời - ví dụ phải viết đúng "lừa đảo" (không phải "lỡ đảo", "lừa đão" hay biến thể sai dấu nào khác).
+${LANGUAGE_RULES}
 
 Định dạng câu trả lời bằng văn bản thuần (plain text): KHÔNG dùng markdown (không **, không #, không dấu gạch đầu dòng kiểu "- " hay "* "). Nếu cần liệt kê, hãy dùng số thứ tự "1.", "2." hoặc ký hiệu "•" theo sau là khoảng trắng, mỗi ý một dòng.
 
@@ -21,16 +36,54 @@ BẮT BUỘC dùng công cụ tìm kiếm web (nếu có) trước khi kết lu�
 - Đường link/tên miền: tìm xem tên miền đó có đúng là trang chính thức của tổ chức được nhắc tới hay không, có bị báo cáo là giả mạo/lừa đảo hay không.
 - Số điện thoại: tìm xem số đó có phải tổng đài chính thức của tổ chức được nhắc tới hay không, có bị người dùng khác báo cáo là số lừa đảo/quấy rối hay không.
 - Số tài khoản ngân hàng: tìm xem số tài khoản đó có từng bị báo cáo liên quan đến lừa đảo hay không.
-Chỉ khi không có công cụ tìm kiếm (ví dụ khi chỉ phân tích ảnh) thì mới được phép chỉ dựa vào phân tích nội dung/hình ảnh, và trong trường hợp đó nên ưu tiên nhãn "❓ CHƯA ĐỦ THÔNG TIN" nếu không đủ căn cứ chắc chắn, thay vì khẳng định link/số điện thoại là giả mà chưa xác minh được.
 
 QUAN TRỌNG - chỉ nói sự thật: KHÔNG được bịa đặt, suy diễn hay tự tạo ra thông tin (tên công ty, số điện thoại, đường link, số liệu, trích dẫn tin tức...) không có trong nội dung người dùng gửi hoặc không tìm thấy qua tìm kiếm web thật sự. Nếu tra cứu web không tìm thấy thông tin xác thực, hãy nói rõ là "không tìm thấy thông tin xác thực" thay vì đoán. Nếu không chắc chắn, hãy chọn nhãn "❓ CHƯA ĐỦ THÔNG TIN" và nói rõ bạn không chắc, thay vì khẳng định chắc nịch một điều bạn không kiểm chứng được. Khi kết luận dựa trên kết quả tìm kiếm, hãy nêu ngắn gọn nguồn/căn cứ (ví dụ: "theo kết quả tìm kiếm, số này từng bị báo cáo lừa đảo trên...") thay vì chỉ nói suông.`;
 
-// groq/compound has built-in web search (for up-to-date scam checks) but no
-// vision; the vision model has no search. Pick per-request based on input.
-// compound-mini (single tool call, lighter) instead of compound to stay
-// under the shared on-demand token-per-minute rate limit more reliably
+// groq/compound-mini has built-in web search (for up-to-date scam/link/phone
+// checks) but no vision. qwen has vision but no search. So for images we run
+// vision first to extract facts (step 1), then hand those facts as text to
+// the search-capable model for the actual verdict (step 2) - giving every
+// request real web verification, not just text-only ones.
 const TEXT_MODEL = "groq/compound-mini";
 const VISION_MODEL = "qwen/qwen3.6-27b";
+
+function stripThinkAndFixSpelling(raw) {
+  // safety net in case reasoning leaks into content despite reasoning_effort: "none"
+  let out = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  // safety net for diacritic slips the model sometimes makes on this key term
+  out = out.replace(/l[ừởỡ]a\s*đ[aảão]o/gi, "lừa đảo");
+  return out;
+}
+
+async function callGroq(apiKey, { model, messages, extraParams }) {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model,
+      max_completion_tokens: 700,
+      messages,
+      ...extraParams,
+    }),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error("Groq API error:", res.status, errText);
+    const error =
+      res.status === 429
+        ? "Hệ thống đang quá tải, vui lòng thử lại sau khoảng 1 phút."
+        : "Lỗi khi gọi AI, vui lòng thử lại.";
+    return { ok: false, status: res.status === 429 ? 429 : 502, error };
+  }
+
+  const json = await res.json();
+  const content = json.choices?.[0]?.message?.content ?? "";
+  return { ok: true, content };
+}
 
 export async function POST(req) {
   const apiKey = process.env.GROQ_API_KEY;
@@ -43,70 +96,57 @@ export async function POST(req) {
 
   const body = await req.json();
   const { text, image } = body; // image: { mediaType, data (base64, no prefix) }
+  const hasImage = Boolean(image?.data && image?.mediaType);
 
-  if (!text && !image) {
+  if (!text && !hasImage) {
     return Response.json({ error: "Thiếu nội dung để kiểm tra." }, { status: 400 });
   }
 
-  const content = [
-    {
-      type: "text",
-      text: text?.trim()
-        ? `Đây là nội dung người dùng chuyển tiếp:\n\n"""${text.trim()}"""`
-        : "Người dùng chỉ gửi ảnh, không có chú thích kèm theo. Hãy phân tích ảnh.",
-    },
-  ];
-  if (image?.data && image?.mediaType) {
-    content.push({
-      type: "image_url",
-      image_url: { url: `data:${image.mediaType};base64,${image.data}` },
-    });
-  }
-
-  const hasImage = Boolean(image?.data && image?.mediaType);
-  const model = hasImage ? VISION_MODEL : TEXT_MODEL;
-
   try {
-    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
-        max_completion_tokens: 700,
-        // reasoning_effort only applies to the vision (Qwen) model
-        ...(hasImage ? { reasoning_effort: "none" } : {}),
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content },
-        ],
-      }),
-    });
+    let verificationInput;
 
-    if (!res.ok) {
-      const errText = await res.text();
-      console.error("Groq API error:", res.status, errText);
-      if (res.status === 429) {
-        return Response.json(
-          { error: "Hệ thống đang quá tải, vui lòng thử lại sau khoảng 1 phút." },
-          { status: 429 }
-        );
+    if (hasImage) {
+      // step 1: vision model extracts objective facts from the screenshot
+      const extraction = await callGroq(apiKey, {
+        model: VISION_MODEL,
+        extraParams: { reasoning_effort: "none" },
+        messages: [
+          { role: "system", content: EXTRACT_PROMPT },
+          {
+            role: "user",
+            content: [
+              {
+                type: "text",
+                text: text?.trim()
+                  ? `Chú thích kèm theo của người dùng: "${text.trim()}"`
+                  : "Người dùng không kèm chú thích.",
+              },
+              { type: "image_url", image_url: { url: `data:${image.mediaType};base64,${image.data}` } },
+            ],
+          },
+        ],
+      });
+      if (!extraction.ok) {
+        return Response.json({ error: extraction.error }, { status: extraction.status });
       }
-      return Response.json(
-        { error: "Lỗi khi gọi AI, vui lòng thử lại." },
-        { status: 502 }
-      );
+      verificationInput = `Dưới đây là bản phân tích SƠ BỘ do một AI thị giác (không có khả năng tìm kiếm web) viết ra sau khi xem ảnh chụp màn hình người dùng gửi. Nhiệm vụ của bạn: dùng tìm kiếm web để KIỂM CHỨNG LẠI từng đường link, số điện thoại, số tài khoản ngân hàng, tên tổ chức được nêu trong bản nháp này - xác nhận hoặc điều chỉnh lại nhận định sơ bộ nếu tìm kiếm cho kết quả khác - rồi đưa ra kết luận CUỐI CÙNG theo đúng định dạng yêu cầu. Không mặc nhiên tin theo nhận định sơ bộ nếu chưa kiểm chứng được.\n\n"""${extraction.content.trim()}"""`;
+    } else {
+      verificationInput = `Đây là nội dung người dùng chuyển tiếp:\n\n"""${text.trim()}"""`;
     }
 
-    const json = await res.json();
-    const raw = json.choices?.[0]?.message?.content ?? "";
-    // safety net in case reasoning leaks into content despite reasoning_effort: "none"
-    let reply = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
-    // safety net for diacritic slips the model sometimes makes on this key term
-    reply = reply.replace(/l[ừởỡ]a\s*đ[aảão]o/gi, "lừa đảo");
+    // step 2 (always): search-capable model verifies links/phones/accounts and gives the verdict
+    const verdict = await callGroq(apiKey, {
+      model: TEXT_MODEL,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: verificationInput },
+      ],
+    });
+    if (!verdict.ok) {
+      return Response.json({ error: verdict.error }, { status: verdict.status });
+    }
 
+    const reply = stripThinkAndFixSpelling(verdict.content);
     return Response.json({ reply });
   } catch (err) {
     console.error(err);
