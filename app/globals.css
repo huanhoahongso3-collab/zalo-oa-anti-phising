@@ -322,6 +322,11 @@ html, body {
   justify-content: center;
 }
 .icon-btn:hover { background: #f0f4ff; }
+.icon-btn:disabled {
+  color: #b7c4d6;
+  cursor: default;
+  background: transparent;
+}
 
 textarea.msg-input {
   flex: 1;

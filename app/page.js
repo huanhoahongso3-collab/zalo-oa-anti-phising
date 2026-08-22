@@ -181,14 +181,10 @@ export default function Home() {
   }
 
   async function handleFiles(files) {
-    const arr = Array.from(files).filter((f) => f.type.startsWith("image/"));
-    for (const file of arr) {
-      const data = await fileToBase64(file);
-      setPendingImages((prev) => [
-        ...prev,
-        { previewUrl: `data:${file.type};base64,${data}`, mediaType: file.type, data },
-      ]);
-    }
+    const file = Array.from(files).find((f) => f.type.startsWith("image/"));
+    if (!file) return;
+    const data = await fileToBase64(file);
+    setPendingImages([{ previewUrl: `data:${file.type};base64,${data}`, mediaType: file.type, data }]);
   }
 
   function removePending(idx) {
@@ -378,14 +374,18 @@ export default function Home() {
             ref={fileInputRef}
             type="file"
             accept="image/*"
-            multiple
             hidden
             onChange={(e) => {
               handleFiles(e.target.files);
               e.target.value = "";
             }}
           />
-          <button className="icon-btn" onClick={() => fileInputRef.current?.click()} title="Gửi ảnh">
+          <button
+            className="icon-btn"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={pendingImages.length > 0}
+            title={pendingImages.length > 0 ? "Chỉ được gửi 1 ảnh mỗi lần" : "Gửi ảnh"}
+          >
             <Icon.Image />
           </button>
           <textarea
