@@ -4,11 +4,18 @@ import { useEffect, useRef, useState } from "react";
 
 const STORAGE_KEY = "anti-phishing-oa-chat";
 
-const WELCOME = {
-  role: "bot",
-  text: "Xin chào 👋 Mình là trợ lý chống lừa đảo. Hãy chuyển tiếp cho mình đoạn tin nhắn hoặc ảnh chụp màn hình bạn đang nghi ngờ, mình sẽ kiểm tra giúp bạn.",
-  time: null,
-};
+const WELCOME_MESSAGES = [
+  {
+    role: "bot",
+    text: "Xin chào 👋 Mình là trợ lý chống lừa đảo. Hãy chuyển tiếp cho mình đoạn tin nhắn hoặc ảnh chụp màn hình bạn đang nghi ngờ, mình sẽ kiểm tra giúp bạn.",
+    time: null,
+  },
+  {
+    role: "bot",
+    text: "📌 Hướng dẫn sử dụng:\n1. Gửi đoạn văn bản tin nhắn nghi ngờ (không kèm ảnh) → mình sẽ phân tích và tìm kiếm trên web để xác minh.\n2. Gửi ảnh chụp màn hình (tin nhắn, SMS, email, trang web, mã QR, hóa đơn...) → mình sẽ đọc ảnh rồi xác minh qua tìm kiếm web.\n3. Gửi CHỈ một đường link, không kèm chữ nào khác → mình sẽ kiểm tra tức thời qua Google Safe Browsing để trả lời nhanh hơn.",
+    time: null,
+  },
+];
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -118,7 +125,7 @@ const Icon = {
 };
 
 export default function Home() {
-  const [messages, setMessages] = useState([WELCOME]);
+  const [messages, setMessages] = useState(WELCOME_MESSAGES);
   const [loaded, setLoaded] = useState(false);
   const [input, setInput] = useState("");
   const [pendingImages, setPendingImages] = useState([]); // {previewUrl (data URL), mediaType, data}
@@ -193,7 +200,7 @@ export default function Home() {
 
   function clearHistory() {
     if (!window.confirm("Xoá toàn bộ lịch sử trò chuyện?")) return;
-    setMessages([WELCOME]);
+    setMessages(WELCOME_MESSAGES);
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch (e) {}

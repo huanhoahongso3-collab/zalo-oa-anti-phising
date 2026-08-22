@@ -49,6 +49,58 @@ QUAN TRỌNG - không suy diễn quá mức thành lừa đảo: việc KHÔNG t
 const TEXT_MODEL = "groq/compound-mini";
 const VISION_MODEL = "qwen/qwen3.6-27b";
 
+// Matches when the whole trimmed message is a single URL/domain and nothing
+// else (no extra words) - that's the only case that skips the AI and goes
+// straight to Google Safe Browsing.
+const URL_ONLY_RE = /^(https?:\/\/)?(www\.)?[a-z0-9-]+(\.[a-z0-9-]+)+([/?#]\S*)?$/i;
+
+function isUrlOnly(text) {
+  const t = text.trim();
+  return Boolean(t) && !/\s/.test(t) && URL_ONLY_RE.test(t);
+}
+
+const THREAT_TYPE_VI = {
+  MALWARE: "phần mềm độc hại",
+  SOCIAL_ENGINEERING: "lừa đảo/giả mạo (phishing)",
+  UNWANTED_SOFTWARE: "phần mềm không mong muốn",
+  POTENTIALLY_HARMFUL_APPLICATION: "ứng dụng có khả năng gây hại",
+};
+
+async function checkSafeBrowsing(url, apiKey) {
+  const target = /^https?:\/\//i.test(url) ? url : `http://${url}`;
+  const res = await fetch(
+    `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        client: { clientId: "anti-phishing-oa", clientVersion: "1.0.0" },
+        threatInfo: {
+          threatTypes: Object.keys(THREAT_TYPE_VI),
+          platformTypes: ["ANY_PLATFORM"],
+          threatEntryTypes: ["URL"],
+          threatEntries: [{ url: target }],
+        },
+      }),
+    }
+  );
+  if (!res.ok) {
+    const errText = await res.text();
+    console.error("Safe Browsing API error:", res.status, errText);
+    return null;
+  }
+  const json = await res.json();
+  return json.matches ?? [];
+}
+
+function buildSafeBrowsingReply(url, matches) {
+  if (matches.length > 0) {
+    const types = [...new Set(matches.map((m) => THREAT_TYPE_VI[m.threatType] || m.threatType))];
+    return `⚠️ CÓ DẤU HIỆU LỪA ĐẢO\nĐường link "${url}" đã bị Google Safe Browsing gắn cờ nguy hiểm: ${types.join(", ")}.\nKhông bấm vào link này, không nhập bất kỳ thông tin cá nhân hay tài khoản/mật khẩu nào nếu đã lỡ mở. Nếu link này được gửi kèm tin nhắn/email, hãy chặn và báo cáo người gửi.`;
+  }
+  return `✅ CÓ VẺ AN TOÀN\nĐường link "${url}" không có trong danh sách trang web nguy hiểm đã biết của Google Safe Browsing.\nLưu ý: kết quả này chỉ dựa trên danh sách của Google, không đảm bảo an toàn tuyệt đối 100% vì các trang lừa đảo mới có thể chưa được ghi nhận. Vẫn nên thận trọng nếu link yêu cầu bạn đăng nhập, nhập OTP hoặc chuyển tiền.`;
+}
+
 function stripThinkAndFixSpelling(raw) {
   // safety net in case reasoning leaks into content despite reasoning_effort: "none"
   let out = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
@@ -109,6 +161,8 @@ export async function POST(req) {
     return Response.json({ error: "Thiếu nội dung để kiểm tra." }, { status: 400 });
   }
 
+  const linkOnly = !hasImage && text && isUrlOnly(text);
+
   // Debug logging only - view in Vercel Dashboard > Deployments > Functions
   // > /api/analyze > Logs. No persistent storage/admin UI, just this line.
   console.log(
@@ -118,10 +172,27 @@ export async function POST(req) {
       ip: req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown",
       userAgent: req.headers.get("user-agent") || "unknown",
       hasImage,
+      route: linkOnly ? "safe_browsing" : "ai",
       textPreview: text?.trim()?.slice(0, 200) || null,
       textLength: text?.trim()?.length || 0,
     })
   );
+
+  // Link-only messages skip the AI entirely and go straight to Google Safe
+  // Browsing - faster, cheaper, and authoritative for known-bad URLs. Any
+  // extra wording or an image falls through to the normal AI pipeline below.
+  const sbKey = process.env.GOOGLE_SAFE_BROWSING_API_KEY;
+  if (linkOnly && sbKey) {
+    try {
+      const matches = await checkSafeBrowsing(text.trim(), sbKey);
+      if (matches !== null) {
+        return Response.json({ reply: buildSafeBrowsingReply(text.trim(), matches) });
+      }
+      // Safe Browsing call failed - fall through to the AI pipeline below
+    } catch (err) {
+      console.error("Safe Browsing check failed, falling back to AI:", err);
+    }
+  }
 
   try {
     let verificationInput;
