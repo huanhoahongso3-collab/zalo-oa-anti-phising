@@ -135,6 +135,12 @@ const Icon = {
       <path d="M6 6l12 12M18 6 6 18" strokeLinecap="round" />
     </svg>
   ),
+  Bulb: (props) => (
+    <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <path d="M9 18h6M10 21h4" strokeLinecap="round" />
+      <path d="M12 3a6 6 0 0 0-3.6 10.8c.6.45 1 1.15 1.1 1.9l.1.8h5l.1-.8c.1-.75.5-1.45 1.1-1.9A6 6 0 0 0 12 3Z" strokeLinejoin="round" />
+    </svg>
+  ),
 };
 
 export default function Home() {
@@ -282,6 +288,27 @@ export default function Home() {
     }
   }
 
+  async function handleWeeklyTip() {
+    if (sending) return;
+    setSending(true);
+    scrollToBottom();
+    try {
+      // always fetches live from chongluadao.vn - no client or server caching
+      const res = await fetch("/api/weekly-tip", { cache: "no-store" });
+      const json = await res.json();
+      const text = res.ok ? json.tip : `Lỗi: ${json.error}`;
+      setMessages((prev) => [...prev, { role: "bot", text, time: timeNow(), noVerdict: true }]);
+    } catch (e) {
+      setMessages((prev) => [
+        ...prev,
+        { role: "bot", text: "Lỗi kết nối, vui lòng thử lại.", time: timeNow(), noVerdict: true },
+      ]);
+    } finally {
+      setSending(false);
+      scrollToBottom();
+    }
+  }
+
   return (
     <div className="app" style={appHeight ? { height: appHeight } : undefined}>
       <div className="header">
@@ -387,6 +414,10 @@ export default function Home() {
       </div>
 
       <div className="composer">
+        <button className="tip-btn" onClick={handleWeeklyTip} disabled={sending}>
+          <Icon.Bulb />
+          Mẹo Mỗi Tuần
+        </button>
         {pendingImages.length > 0 && (
           <div className="preview-row">
             {pendingImages.map((img, i) => (
