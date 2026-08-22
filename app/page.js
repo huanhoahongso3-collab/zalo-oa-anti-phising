@@ -83,6 +83,23 @@ export default function Home() {
   const [sending, setSending] = useState(false);
   const fileInputRef = useRef(null);
   const scrollRef = useRef(null);
+  const textareaRef = useRef(null);
+  const [appHeight, setAppHeight] = useState(null);
+
+  // keep the app pinned to the real visible viewport, since mobile
+  // browsers don't shrink 100dvh reliably when the keyboard opens
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const update = () => setAppHeight(vv.height);
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+    };
+  }, []);
 
   // load chat history once on mount
   useEffect(() => {
@@ -191,7 +208,7 @@ export default function Home() {
   }
 
   return (
-    <div className="app">
+    <div className="app" style={appHeight ? { height: appHeight } : undefined}>
       <div className="header">
         <div className="avatar">
           <Icon.Shield />
@@ -280,12 +297,14 @@ export default function Home() {
             <Icon.Image />
           </button>
           <textarea
+            ref={textareaRef}
             className="msg-input"
             rows={1}
             placeholder="Nhập tin nhắn nghi ngờ..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
+            onFocus={() => setTimeout(scrollToBottom, 300)}
           />
           {input.trim() || pendingImages.length > 0 ? (
             <button className="send-btn" onClick={handleSend} disabled={sending} title="Gửi">
