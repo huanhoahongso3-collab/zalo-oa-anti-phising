@@ -13,7 +13,7 @@ BẮT BUỘC: dòng đầu tiên của câu trả lời phải là NGUYÊN VĂN,
 ❓ CHƯA ĐỦ THÔNG TIN
 Sau đó xuống dòng rồi mới viết phần giải thích. Không viết gì khác trên dòng đầu tiên đó (không thêm số thứ tự, không thêm chữ nào khác).
 
-Trả lời ngắn gọn, rõ ràng, TOÀN BỘ bằng tiếng Việt (không dùng tiếng Anh, kể cả từ chuyên ngành - hãy dịch sang tiếng Việt), giọng điệu thân thiện và trấn an vì người dùng có thể đang lo lắng.
+Trả lời ngắn gọn, rõ ràng, TOÀN BỘ bằng tiếng Việt (không dùng tiếng Anh, kể cả từ chuyên ngành - hãy dịch sang tiếng Việt), giọng điệu thân thiện và trấn an vì người dùng có thể đang lo lắng. LUÔN viết đúng chính tả tiếng Việt và đúng dấu thanh (sắc, huyền, hỏi, ngã, nặng) cho mọi từ, kiểm tra lại trước khi trả lời - ví dụ phải viết đúng "lừa đảo" (không phải "lỡ đảo", "lừa đão" hay biến thể sai dấu nào khác).
 
 Định dạng câu trả lời bằng văn bản thuần (plain text): KHÔNG dùng markdown (không **, không #, không dấu gạch đầu dòng kiểu "- " hay "* "). Nếu cần liệt kê, hãy dùng số thứ tự "1.", "2." hoặc ký hiệu "•" theo sau là khoảng trắng, mỗi ý một dòng.
 
@@ -103,7 +103,9 @@ export async function POST(req) {
     const json = await res.json();
     const raw = json.choices?.[0]?.message?.content ?? "";
     // safety net in case reasoning leaks into content despite reasoning_effort: "none"
-    const reply = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    let reply = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+    // safety net for diacritic slips the model sometimes makes on this key term
+    reply = reply.replace(/l[ừởỡ]a\s*đ[aảão]o/gi, "lừa đảo");
 
     return Response.json({ reply });
   } catch (err) {
