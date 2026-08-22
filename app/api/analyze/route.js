@@ -76,7 +76,7 @@ export async function POST(req) {
       const errText = await res.text();
       console.error("Groq API error:", res.status, errText);
       return Response.json(
-        { error: "Lỗi khi gọi AI, vui lòng thử lại." },
+        { error: `Groq API lỗi (${res.status}, model=${model}): ${errText}` },
         { status: 502 }
       );
     }
