@@ -6,7 +6,9 @@ Nhiệm vụ của bạn:
 3. Giải thích ngắn gọn lý do (2-4 gạch đầu dòng).
 4. Nếu có dấu hiệu lừa đảo, đưa ra khuyến nghị hành động cụ thể (không chuyển tiền, không bấm link, chặn/báo cáo số, gọi tổng đài chính thức để xác minh...).
 
-Trả lời ngắn gọn, rõ ràng, bằng tiếng Việt, giọng điệu thân thiện và trấn an vì người dùng có thể đang lo lắng.`;
+Trả lời ngắn gọn, rõ ràng, TOÀN BỘ bằng tiếng Việt (không dùng tiếng Anh, kể cả từ chuyên ngành - hãy dịch sang tiếng Việt), giọng điệu thân thiện và trấn an vì người dùng có thể đang lo lắng.
+
+Định dạng câu trả lời bằng văn bản thuần (plain text): KHÔNG dùng markdown (không **, không #, không dấu gạch đầu dòng kiểu "- " hay "* "). Nếu cần liệt kê, hãy dùng số thứ tự "1.", "2." hoặc ký hiệu "•" theo sau là khoảng trắng, mỗi ý một dòng.`;
 
 const GROQ_MODEL = "qwen/qwen3.6-27b";
 
@@ -50,7 +52,8 @@ export async function POST(req) {
       },
       body: JSON.stringify({
         model: GROQ_MODEL,
-        max_tokens: 700,
+        max_completion_tokens: 700,
+        reasoning_effort: "none",
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content },
@@ -68,7 +71,9 @@ export async function POST(req) {
     }
 
     const json = await res.json();
-    const reply = json.choices?.[0]?.message?.content ?? "";
+    const raw = json.choices?.[0]?.message?.content ?? "";
+    // safety net in case reasoning leaks into content despite reasoning_effort: "none"
+    const reply = raw.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
 
     return Response.json({ reply });
   } catch (err) {

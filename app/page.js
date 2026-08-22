@@ -22,11 +22,24 @@ function fileToBase64(file) {
   });
 }
 
+function escapeHtml(str) {
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// The model is instructed to avoid markdown, but strip it defensively
+// (and drop any stray <think> block) so raw ** or - never leak to the user.
 function renderReply(text) {
-  return text
+  let t = escapeHtml(text);
+  t = t.replace(/&lt;think&gt;[\s\S]*?&lt;\/think&gt;/gi, "");
+  t = t.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+  t = t.replace(/(^|[^*])\*(?!\*)([^*\n]+)\*(?!\*)/g, "$1<i>$2</i>");
+  t = t.replace(/^[ \t]*[-*]\s+/gm, "• ");
+  t = t.replace(/^#{1,6}\s*/gm, "");
+  t = t
     .replace(/⚠️ CÓ DẤU HIỆU LỪA ĐẢO/g, '<span class="verdict-fraud">⚠️ CÓ DẤU HIỆU LỪA ĐẢO</span>')
     .replace(/✅ CÓ VẺ AN TOÀN/g, '<span class="verdict-safe">✅ CÓ VẺ AN TOÀN</span>')
     .replace(/❓ CHƯA ĐỦ THÔNG TIN/g, '<span class="verdict-unsure">❓ CHƯA ĐỦ THÔNG TIN</span>');
+  return t.replace(/\n/g, "<br>");
 }
 
 function timeNow() {
