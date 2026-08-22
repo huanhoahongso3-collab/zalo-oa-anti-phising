@@ -74,11 +74,12 @@ const Icon = {
       <path d="m20 20-3.5-3.5" strokeLinecap="round" />
     </svg>
   ),
-  More: (props) => (
-    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" {...props}>
-      <circle cx="5" cy="12" r="2" />
-      <circle cx="12" cy="12" r="2" />
-      <circle cx="19" cy="12" r="2" />
+  Trash: (props) => (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" {...props}>
+      <path d="M4 7h16" strokeLinecap="round" />
+      <path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M10 11v6M14 11v6" strokeLinecap="round" />
     </svg>
   ),
   Image: (props) => (
@@ -179,6 +180,7 @@ export default function Home() {
   }
 
   function clearHistory() {
+    if (!window.confirm("Xoá toàn bộ lịch sử trò chuyện?")) return;
     setMessages([WELCOME]);
     try {
       localStorage.removeItem(STORAGE_KEY);
@@ -251,8 +253,8 @@ export default function Home() {
           <span className="header-icon" title="Tìm kiếm">
             <Icon.Search />
           </span>
-          <span className="header-icon" title="Xoá lịch sử" onClick={clearHistory}>
-            <Icon.More />
+          <span className="header-icon" title="Xoá lịch sử chat" onClick={clearHistory}>
+            <Icon.Trash />
           </span>
         </div>
       </div>

@@ -8,9 +8,14 @@ Nhiệm vụ của bạn:
 
 Trả lời ngắn gọn, rõ ràng, TOÀN BỘ bằng tiếng Việt (không dùng tiếng Anh, kể cả từ chuyên ngành - hãy dịch sang tiếng Việt), giọng điệu thân thiện và trấn an vì người dùng có thể đang lo lắng.
 
-Định dạng câu trả lời bằng văn bản thuần (plain text): KHÔNG dùng markdown (không **, không #, không dấu gạch đầu dòng kiểu "- " hay "* "). Nếu cần liệt kê, hãy dùng số thứ tự "1.", "2." hoặc ký hiệu "•" theo sau là khoảng trắng, mỗi ý một dòng.`;
+Định dạng câu trả lời bằng văn bản thuần (plain text): KHÔNG dùng markdown (không **, không #, không dấu gạch đầu dòng kiểu "- " hay "* "). Nếu cần liệt kê, hãy dùng số thứ tự "1.", "2." hoặc ký hiệu "•" theo sau là khoảng trắng, mỗi ý một dòng.
 
-const GROQ_MODEL = "qwen/qwen3.6-27b";
+Nếu có công cụ tìm kiếm web, hãy dùng nó để tra cứu thông tin thời sự (chiêu trò lừa đảo mới, số điện thoại/tài khoản/website bị báo cáo lừa đảo, tin tức liên quan) trước khi kết luận, thay vì chỉ dựa vào kiến thức cũ.`;
+
+// groq/compound has built-in web search (for up-to-date scam checks) but no
+// vision; the vision model has no search. Pick per-request based on input.
+const TEXT_MODEL = "groq/compound";
+const VISION_MODEL = "qwen/qwen3.6-27b";
 
 export async function POST(req) {
   const apiKey = process.env.GROQ_API_KEY;
@@ -43,6 +48,9 @@ export async function POST(req) {
     });
   }
 
+  const hasImage = Boolean(image?.data && image?.mediaType);
+  const model = hasImage ? VISION_MODEL : TEXT_MODEL;
+
   try {
     const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
@@ -51,9 +59,10 @@ export async function POST(req) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: GROQ_MODEL,
+        model,
         max_completion_tokens: 700,
-        reasoning_effort: "none",
+        // reasoning_effort only applies to the vision (Qwen) model
+        ...(hasImage ? { reasoning_effort: "none" } : {}),
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content },
