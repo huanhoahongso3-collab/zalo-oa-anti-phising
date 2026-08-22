@@ -1,6 +1,14 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+const STORAGE_KEY = "anti-phishing-oa-chat";
+
+const WELCOME = {
+  role: "bot",
+  text: "Xin chào 👋 Mình là trợ lý chống lừa đảo. Hãy chuyển tiếp cho mình đoạn tin nhắn hoặc ảnh chụp màn hình bạn đang nghi ngờ, mình sẽ kiểm tra giúp bạn.",
+  time: null,
+};
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -21,18 +29,46 @@ function renderReply(text) {
     .replace(/❓ CHƯA ĐỦ THÔNG TIN/g, '<span class="verdict-unsure">❓ CHƯA ĐỦ THÔNG TIN</span>');
 }
 
+function timeNow() {
+  return new Date().toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit" });
+}
+
 export default function Home() {
-  const [messages, setMessages] = useState([
-    {
-      role: "bot",
-      text: "Xin chào 👋 Mình là trợ lý chống lừa đảo. Hãy chuyển tiếp cho mình đoạn tin nhắn hoặc ảnh chụp màn hình bạn đang nghi ngờ, mình sẽ kiểm tra giúp bạn.",
-    },
-  ]);
+  const [messages, setMessages] = useState([WELCOME]);
+  const [loaded, setLoaded] = useState(false);
   const [input, setInput] = useState("");
-  const [pendingImages, setPendingImages] = useState([]); // {previewUrl, mediaType, data}
+  const [pendingImages, setPendingImages] = useState([]); // {previewUrl (data URL), mediaType, data}
   const [sending, setSending] = useState(false);
   const fileInputRef = useRef(null);
   const scrollRef = useRef(null);
+
+  // load chat history once on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length) setMessages(parsed);
+      }
+    } catch (e) {
+      // ignore corrupt storage
+    }
+    setLoaded(true);
+  }, []);
+
+  // persist on every change (skip the very first render before load finishes)
+  useEffect(() => {
+    if (!loaded) return;
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+    } catch (e) {
+      // storage full/unavailable - chat just won't persist
+    }
+  }, [messages, loaded]);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [loaded]);
 
   function scrollToBottom() {
     requestAnimationFrame(() => {
@@ -46,7 +82,7 @@ export default function Home() {
       const data = await fileToBase64(file);
       setPendingImages((prev) => [
         ...prev,
-        { previewUrl: URL.createObjectURL(file), mediaType: file.type, data },
+        { previewUrl: `data:${file.type};base64,${data}`, mediaType: file.type, data },
       ]);
     }
   }
@@ -55,13 +91,25 @@ export default function Home() {
     setPendingImages((prev) => prev.filter((_, i) => i !== idx));
   }
 
+  function clearHistory() {
+    setMessages([WELCOME]);
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch (e) {}
+  }
+
   async function handleSend() {
     if (sending) return;
     const text = input.trim();
     const images = pendingImages;
     if (!text && images.length === 0) return;
 
-    const userMsg = { role: "user", text, images: images.map((i) => i.previewUrl) };
+    const userMsg = {
+      role: "user",
+      text,
+      images: images.map((i) => i.previewUrl),
+      time: timeNow(),
+    };
     setMessages((prev) => [...prev, userMsg]);
     setInput("");
     setPendingImages([]);
@@ -81,11 +129,11 @@ export default function Home() {
       });
       const json = await res.json();
       const replyText = res.ok ? json.reply : `Lỗi: ${json.error}`;
-      setMessages((prev) => [...prev, { role: "bot", text: replyText }]);
+      setMessages((prev) => [...prev, { role: "bot", text: replyText, time: timeNow() }]);
     } catch (e) {
       setMessages((prev) => [
         ...prev,
-        { role: "bot", text: "Lỗi kết nối, vui lòng thử lại." },
+        { role: "bot", text: "Lỗi kết nối, vui lòng thử lại.", time: timeNow() },
       ]);
     } finally {
       setSending(false);
@@ -103,10 +151,17 @@ export default function Home() {
   return (
     <div className="app">
       <div className="header">
+        <div className="header-icon">‹</div>
         <div className="avatar">🛡️</div>
         <div className="header-info">
-          <div className="header-name">Anti-Phishing OA</div>
-          <div className="header-sub">Trợ lý AI · Luôn hoạt động</div>
+          <div className="header-name">
+            Anti-Phishing OA <span className="verified" title="Official Account">✓</span>
+          </div>
+          <div className="header-sub">Official Account</div>
+        </div>
+        <div className="header-actions">
+          <span className="header-icon" title="Tìm kiếm">🔍</span>
+          <span className="header-icon" title="Xoá lịch sử" onClick={clearHistory}>⋮</span>
         </div>
       </div>
 
@@ -114,26 +169,31 @@ export default function Home() {
         {messages.map((m, i) => (
           <div key={i} className={`row ${m.role}`}>
             {m.role === "bot" && <div className="bubble-avatar">🛡️</div>}
-            <div className="bubble">
-              {m.images?.map((src, j) => (
-                <img key={j} src={src} alt="forwarded" style={{ marginBottom: m.text ? 6 : 0 }} />
-              ))}
-              {m.role === "bot" ? (
-                <span dangerouslySetInnerHTML={{ __html: renderReply(m.text) }} />
-              ) : (
-                m.text
-              )}
+            <div className="bubble-col">
+              <div className="bubble">
+                {m.images?.map((src, j) => (
+                  <img key={j} src={src} alt="forwarded" style={{ marginBottom: m.text ? 6 : 0 }} />
+                ))}
+                {m.role === "bot" ? (
+                  <span dangerouslySetInnerHTML={{ __html: renderReply(m.text) }} />
+                ) : (
+                  m.text
+                )}
+              </div>
+              {m.time && <div className="msg-time">{m.time}</div>}
             </div>
           </div>
         ))}
         {sending && (
           <div className="row bot">
             <div className="bubble-avatar">🛡️</div>
-            <div className="bubble">
-              <div className="typing">
-                <span />
-                <span />
-                <span />
+            <div className="bubble-col">
+              <div className="bubble">
+                <div className="typing">
+                  <span />
+                  <span />
+                  <span />
+                </div>
               </div>
             </div>
           </div>
@@ -164,24 +224,25 @@ export default function Home() {
             }}
           />
           <button className="icon-btn" onClick={() => fileInputRef.current?.click()} title="Gửi ảnh">
-            📷
+            🖼️
           </button>
           <textarea
             className="msg-input"
             rows={1}
-            placeholder="Nhập hoặc dán tin nhắn nghi ngờ..."
+            placeholder="Nhập tin nhắn nghi ngờ..."
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
           />
-          <button
-            className="send-btn"
-            onClick={handleSend}
-            disabled={sending || (!input.trim() && pendingImages.length === 0)}
-            title="Gửi"
-          >
-            ➤
-          </button>
+          {input.trim() || pendingImages.length > 0 ? (
+            <button className="send-btn" onClick={handleSend} disabled={sending} title="Gửi">
+              ➤
+            </button>
+          ) : (
+            <button className="icon-btn" title="Sticker">
+              😊
+            </button>
+          )}
         </div>
       </div>
     </div>
