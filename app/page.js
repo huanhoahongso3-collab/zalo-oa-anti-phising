@@ -32,14 +32,30 @@ const VERDICTS = [
   { kind: "unsure", label: "❓ CHƯA ĐỦ THÔNG TIN", short: "Chưa chắc chắn" },
 ];
 
-// Pulls the leading verdict label (if present) out of the reply so it can be
-// shown as a status badge pinned to the top of the bubble instead of buried
-// inline in the text.
+const FUZZY_VERDICTS = [
+  { kind: "fraud", short: "Lừa đảo", re: /lừa\s*đảo/i },
+  { kind: "safe", short: "An toàn", re: /an\s*toàn/i },
+  { kind: "unsure", short: "Chưa chắc chắn", re: /(chưa\s*đủ\s*thông\s*tin|không\s*chắc\s*chắn)/i },
+];
+
+// Pulls the leading verdict label out of the reply so it can be shown as a
+// status badge pinned to the top of the bubble instead of buried inline in
+// the text. Tries the exact instructed label first; falls back to a fuzzy
+// keyword match near the start in case the model didn't follow the format.
 function extractVerdict(text) {
+  const trimmed = text.trim();
   for (const v of VERDICTS) {
-    if (text.trim().startsWith(v.label)) {
-      const rest = text.trim().slice(v.label.length).replace(/^[\s:.\-–]+/, "");
+    if (trimmed.startsWith(v.label)) {
+      const rest = trimmed.slice(v.label.length).replace(/^[\s:.\-–]+/, "");
       return { ...v, rest };
+    }
+  }
+  const head = trimmed.slice(0, 40);
+  for (const f of FUZZY_VERDICTS) {
+    const m = head.match(f.re);
+    if (m) {
+      const rest = trimmed.slice(m.index + m[0].length).trimStart();
+      return { ...f, rest };
     }
   }
   return { kind: null, rest: text };
