@@ -57,10 +57,10 @@ html, body {
   height: 36px;
   border-radius: 50%;
   background: #fff;
+  color: #0068ff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
   flex-shrink: 0;
 }
 
@@ -132,7 +132,10 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+}
+.bubble-avatar svg {
+  width: 15px;
+  height: 15px;
 }
 
 .bubble-col {
