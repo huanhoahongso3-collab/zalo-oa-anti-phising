@@ -26,5 +26,5 @@ Deploy as a normal Next.js project on [Vercel](https://vercel.com/new). Set the 
 ## Stack
 
 - Next.js (App Router)
-- [Groq](https://console.groq.com) `meta-llama/llama-4-scout-17b-16e-instruct` (multimodal, Vietnamese + vision) for fraud classification
+- [Groq](https://console.groq.com) `qwen/qwen3.6-27b` (multimodal, Vietnamese + vision) for fraud classification
 - Plain CSS styled to resemble the Zalo chat UI

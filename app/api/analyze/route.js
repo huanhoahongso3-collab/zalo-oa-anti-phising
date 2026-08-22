@@ -8,7 +8,7 @@ Nhiệm vụ của bạn:
 
 Trả lời ngắn gọn, rõ ràng, bằng tiếng Việt, giọng điệu thân thiện và trấn an vì người dùng có thể đang lo lắng.`;
 
-const GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
+const GROQ_MODEL = "qwen/qwen3.6-27b";
 
 export async function POST(req) {
   const apiKey = process.env.GROQ_API_KEY;
@@ -62,7 +62,7 @@ export async function POST(req) {
       const errText = await res.text();
       console.error("Groq API error:", res.status, errText);
       return Response.json(
-        { error: `Groq API lỗi (${res.status}): ${errText}` },
+        { error: "Lỗi khi gọi AI, vui lòng thử lại." },
         { status: 502 }
       );
     }
