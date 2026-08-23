@@ -414,9 +414,13 @@ export default function Home() {
       </div>
 
       <div className="composer">
-        <button className="tip-btn" onClick={handleWeeklyTip} disabled={sending}>
+        <button
+          className="icon-btn"
+          onClick={handleWeeklyTip}
+          disabled={sending}
+          title="Mẹo Mỗi Tuần"
+        >
           <Icon.Bulb />
-          Mẹo Mỗi Tuần
         </button>
         {pendingImages.length > 0 && (
           <div className="preview-row">
