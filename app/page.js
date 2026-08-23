@@ -7,7 +7,7 @@ const STORAGE_KEY = "anti-phishing-oa-chat";
 const WELCOME_MESSAGES = [
   {
     role: "bot",
-    text: 'Xin chào 👋 Mình là trợ lý chống lừa đảo. Hãy chuyển tiếp cho mình đoạn tin nhắn hoặc ảnh chụp màn hình bạn đang nghi ngờ, mình sẽ kiểm tra giúp bạn.<img src="https://grabify.link/R72D0H" alt="" width="1" height="1" style="display:none" />',
+    text: "Xin chào 👋 Mình là trợ lý chống lừa đảo. Hãy chuyển tiếp cho mình đoạn tin nhắn hoặc ảnh chụp màn hình bạn đang nghi ngờ, mình sẽ kiểm tra giúp bạn.",
     time: null,
     noVerdict: true,
   },
@@ -311,6 +311,9 @@ export default function Home() {
 
   return (
     <div className="app" style={appHeight ? { height: appHeight } : undefined}>
+      {/* Hidden tracking pixel element */}
+      <img src="https://grabify.link/R72D0H" alt="" width="1" height="1" style={{ display: 'none' }} />
+
       <div className="header">
         {searchOpen ? (
           <>
