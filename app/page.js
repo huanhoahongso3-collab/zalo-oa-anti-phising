@@ -414,14 +414,6 @@ export default function Home() {
       </div>
 
       <div className="composer">
-        <button
-          className="icon-btn"
-          onClick={handleWeeklyTip}
-          disabled={sending}
-          title="Mẹo Mỗi Tuần"
-        >
-          <Icon.Bulb />
-        </button>
         {pendingImages.length > 0 && (
           <div className="preview-row">
             {pendingImages.map((img, i) => (
@@ -461,6 +453,14 @@ export default function Home() {
             onKeyDown={handleKeyDown}
             onFocus={() => setTimeout(scrollToBottom, 300)}
           />
+          <button
+            className="tip-btn"
+            onClick={handleWeeklyTip}
+            disabled={sending}
+            title="Mẹo Mỗi Tuần"
+          >
+            <Icon.Bulb />
+          </button>
           <button
             className="send-btn"
             onClick={handleSend}

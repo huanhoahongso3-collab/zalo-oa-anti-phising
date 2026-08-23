@@ -356,19 +356,17 @@ html, body {
 }
 
 .tip-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
   border: 1px solid var(--tip-btn-border);
   background: var(--tip-btn-bg);
   color: var(--tip-btn-fg);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 7px 12px;
-  border-radius: 10px;
   cursor: pointer;
-  margin-bottom: 8px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .tip-btn:hover {
   filter: brightness(0.97);
@@ -441,6 +439,7 @@ html, body {
 
 textarea.msg-input {
   flex: 1;
+  min-width: 0;
   resize: none;
   border: none;
   outline: none;
@@ -448,7 +447,7 @@ textarea.msg-input {
   color: var(--input-fg);
   border-radius: 18px;
   padding: 9px 14px;
-  font-size: 14.5px;
+  font-size: 13.5px;
   max-height: 100px;
   font-family: inherit;
 }
