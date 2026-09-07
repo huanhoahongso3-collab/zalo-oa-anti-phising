@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Anti-Phishing OA",
+  title: "Lá Chắn Số",
   description: "Forward a message or image and get an AI fraud verdict",
 };
 
