@@ -335,7 +335,7 @@ export default function Home() {
             </div>
             <div className="header-info">
               <div className="header-name">
-                Anti-Phishing OA <span className="verified" title="Official Account">✓</span>
+                Lá Chắn Số <span className="verified" title="Official Account">✓</span>
               </div>
               <div className="header-sub">Official Account</div>
             </div>
